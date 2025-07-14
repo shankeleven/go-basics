@@ -1,5 +1,6 @@
 package main
 
+import "time"
 import "fmt"
 import "unsafe"
 
@@ -41,7 +42,7 @@ import "unsafe"
 
 
 
-    // use case for this first class citizenship
+// use case for this first class citizenship
 
 //     var operation func(int, int) int
 // if mode == "add" {
@@ -185,6 +186,10 @@ func (u *user) vrelocate( newadd string ) {
 }
 
 //
+
+func printnum(a int){
+	fmt.Println(a)
+}
 
 
 
@@ -509,6 +514,23 @@ var padding_sample alignment;
 
 
 
+printnum(0) // this would run synchrounously , this means the main function call will block until it completes before moving to the next line of code.
+
+go printnum(1) // this would run asynchronously , this means the main function call will not block and will move to the next line of code immediately
+// this just forks off the function call to a new goroutine and the main function will continue executing without caring about it.
+// this also means that the main function will not wait for the goroutine to finish before exiting.
+
+	for i :=0;i<10;i++{
+		go printnum(i)
+		// this will create 10 goroutines that will print the numbers from 0 to 9 not necessarily in order
+	}
+	// some goroutines might finish before others, and the main function will not wait for them to finish before exiting.
+	// so you would see out of 10 , some numbers are not printed sometimes, because the main function exits before the goroutines finish executing.
+	// comment out the time.Sleep() line to see this behaviour
+
+	time.Sleep(2 * time.Second) // now all would be printed
+
+
 
 }
 
@@ -557,15 +579,16 @@ But if the argument is a reference type, the copy still points to the same under
 
 The term "reference type" in Go refers to types that internally hold a pointer to data.
 
-| Reference Type | What’s copied?                | Can modify underlying data? |
-| -------------- | ----------------------------- | --------------------------- |
+_________________________________________________________________________________
+| Reference Type | What’s copied?                | Can modify underlying data? 	|
+| -------------- | ----------------------------- | -----------------------------|
 | `*T`           | The pointer (address)         | ✅ Yes                       |
 | `[]T`          | Slice header (ptr, len, cap)  | ✅ Yes                       |
 | `map[K]V`      | Map header (internal pointer) | ✅ Yes                       |
 | `chan T`       | Channel handle                | ✅ Yes                       |
 | `func`         | Function pointer              | ✅ Yes                       |
 | `interface{}`  | Interface header              | ✅ Yes (depends on content)  |
-
+|_______________________________________________________________________________|
 */
 
 
