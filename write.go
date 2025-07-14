@@ -1,6 +1,9 @@
 package main
 
 import "fmt"
+import "unsafe"
+
+
 
 
 
@@ -61,6 +64,16 @@ func outer() func(int) int {
 
 }
 
+type writer interface{
+	write(byte) (string , error)
+
+}
+
+// type readwrite struct{
+//     write() int // this throws some syntax error
+// }
+// error is because you cannot define a method inside a struct, it has to be defined outside with
+// a receiver argument, which is the struct itself
 
 type getter interface{
     get() string
@@ -74,7 +87,18 @@ type getter interface{
 
 
 
+// structs
+// A struct is a composite data type that groups together variables (fields) under a single name.
+// It allows you to create complex data types that can hold multiple values of different types.
+// Structs are value types, meaning they are copied when assigned to a new variable or passed to a function.
+// They are defined using the type keyword followed by the struct keyword and a set of fi
+// Under the hood, structs are implemented as a contiguous block of memory,
+// where each field is stored in the order they are defined
 
+type alignment struct{
+	a int8
+	b int32
+}
 
 type address struct{
     City string
@@ -84,6 +108,62 @@ type user struct{
     name string
     address address
 }
+
+// Essential inbuilt structs that I'd revise
+
+// to be completed
+
+
+
+
+
+// Interfaces
+// Suppose I want to implement a program that outsources reading and writing operations to a file or a network connection.
+// I would define an interface that specifies the methods for reading and writing data.
+
+type readwriter interface{
+	 write([]byte) (string , error)
+	 read() (string , error)
+}
+
+type readwrite struct{
+	rdwr readwriter
+}
+
+// sample readwriter
+
+type iohandler struct{}
+
+func (io iohandler) write(data []byte) (string, error) {
+	// Implementation for writing data
+	return "Data written successfully", nil
+}
+func (io iohandler) read() (string, error) {
+	// Implementation for reading data
+	return "Data read successfully", nil
+}
+// now we can use this iohandler as a readwriter
+// and pass it to the readwrite struct or any other function that expects a readwriter interface
+
+// var ioHandler inter = iohandler{}
+   // rw := readwriter{writer: ioHandler}
+
+// You are making a new readwriter object and telling it, "Here’s your writer — use this ioHandler to do the
+// reading and writing.
+
+// Unlike many languages, Go uses implicit interface satisfaction. You don't declare that a type implements an interface
+// - if it has the right methods, it automatically satisfies the interface.
+
+
+
+//  EMPTY INTERFACES
+// An empty interface is a special type in Go that can hold values of any type.
+// It is defined as `interface{}` and is different from nil, which is a specific value representing the absence of a value.
+// The empty interface is often used when you want to write functions or data structures that can accept any type of value.
+// This take 0 bytes in memory, as it does not store any type information.
+
+
+
 // methods
 // a method is a function with special reviever argument
 // The receiver appears in its own argument list between the func keyword and the method name.
@@ -306,8 +386,18 @@ st:= user{
 
      fmt.Println(st)
 
-     //
-     // ""
+
+    // go interfaces : a behaviour specification
+    // An interface in Go is a type that defines a set of method signatures
+    // that a concrete type must implement to satisfy the interface.
+	// think of an interface as a plug socket "interface" similar to India vs Dubai
+	// assume there is a code that makes use of a database , now it does not need to know how the database optimises something
+	// or how it stores data , it just needs to support insertion with "INSERT INTO" and retrieval with "SELECT FROM"
+	// so the code would be written in such a way that it would use the interface and not the concrete type
+	// this allows for flexibility and extensibility in the codebase, as new types can be added without modifying existing code.
+	// so it is  is a contract that defines what methods a type must have.
+
+
      var rit getter = st // variable of an interface , can store any variable satisfying the interface
     fmt.Println("rit :", rit)
 
@@ -359,18 +449,123 @@ if exist {
     markscpy := marks // both would point to the same underlying map and changes to one would affect both
     fmt.Println(markscpy)
 
-    // go interfaces : a behaviour specification
-    // An interface in Go is a type that defines a set of method signatures
-    // that a concrete type must implement to satisfy the interface.
+	// empty structs {}
 
-    
+    var xem struct {} // defined it directly as there were no items inside so, could do it otherwise
+	xem = struct{}{} // empty struct , no fields , size 0 bytes
+	fmt.Println("the size of empty struct is ", unsafe.Sizeof(xem)) // 0 bytes, used for signalling or as a placeholder
+	// it is in unsafe because it violates the go's abstractions that keep you gay and hides low level details
+
+	// go optimises empty structs to save memory
+	opt_sample := []struct{}{{}, {}, {}} // slice of empty structs
+	// they take 0 space in memory
+	fmt.Println("the size of slice of empty struct is ", unsafe.Sizeof(opt_sample)) // 24 bytes in slice header ; 0 bytes for the values, as they are optimised to take no space
+
+
+	// it can be used as methods recievers with no state
+	/* type MyStruct struct{}
+
+	func (MyStruct) DoSomething() {
+    	fmt.Println("Doing something")
+	}
+*/
+
+
+	done := make(chan struct{})
+	go func() { //  no name becuase wanted to use inside main function
+    // do something
+    done <- struct{}{} // signal completion
+	}()
+	<-done
+
+
+
+	// there is this clever implementation of sets using empty structs as the language go somehow does not come with it
+
+	mockset := map[string]struct{}{
+		"apple" : {},
+		"banana" : {},
+	}
+
+	_, ok := mockset["appple"]
+	if !ok{
+	fmt.Println("ok, it does exist")
+	}
+
+
+
+
+// in interesting detail about padding and alignment
+/* In memory, most CPUs require that data is aligned on certain byte boundaries. For example:
+int32 (4 bytes) should start at addresses divisible by 4 & int64 (8 bytes) at addresses divisible by 8
+This means Go might insert padding bytes between fields to satisfy these constraints.
+
+*/
+
+var padding_sample alignment;
+	fmt.Println("the size of the alignment struct is : ", unsafe.Sizeof(padding_sample)) // this comes out to be 8
+	// as there are 3 padding bytes after int8 , asit takes one byte
+
+
+
 
 
 }
 
 
-// Language Quirks
+// Language Quirks:
 // Capitalization Controls Visibility (Exported(name starts with Capital letter)  vs Unexported)
+// Names starting with a capital letter are exported, meaning they can be accessed from other packages.
+// Names starting with a lowercase letter are unexported, meaning they are only accessible within the same package.
 // no implicit type conversion even from uint4 to uint16
 // multiple return values
 // the compiler inserts semicolon but is sensitive to \n
+
+
+
+
+
+
+/* what values can be nil and what cannot be nil:
+
+Every function call in Go passes arguments by value. That means:
+The function receives a copy of the argument.
+But if the argument is a reference type, the copy still points to the same underlying data.
+
+
+┌────────────────────────┐
+│     Reference Types    │
+│ (Can be nil, 0 bytes)  │
+├────────────────────────┤
+│ *T      => Pointer     │
+│ interface{} / error    │
+│ []T     => Slice       │
+│ map[K]V => Map         │
+│ chan T  => Channel     │
+│ func()  => Function    │
+└────────────────────────┘
+
+┌────────────────────────┐
+│      Value Types       │
+│ (Never nil, have data) │
+├────────────────────────┤
+│ int, float, bool       │
+│ string                 │
+│ struct{}               │
+│ [N]T => Array          │
+└────────────────────────┘
+
+The term "reference type" in Go refers to types that internally hold a pointer to data.
+
+| Reference Type | What’s copied?                | Can modify underlying data? |
+| -------------- | ----------------------------- | --------------------------- |
+| `*T`           | The pointer (address)         | ✅ Yes                       |
+| `[]T`          | Slice header (ptr, len, cap)  | ✅ Yes                       |
+| `map[K]V`      | Map header (internal pointer) | ✅ Yes                       |
+| `chan T`       | Channel handle                | ✅ Yes                       |
+| `func`         | Function pointer              | ✅ Yes                       |
+| `interface{}`  | Interface header              | ✅ Yes (depends on content)  |
+
+*/
+
+
