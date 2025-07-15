@@ -27,6 +27,7 @@ import "unsafe"
 
     func divide(a int , b int) (int,error) {
         if b==0{
+
             return 0, fmt.Errorf("division by %d",0)
         }
         return a/b,nil
@@ -111,9 +112,91 @@ type user struct{
 }
 
 // Essential inbuilt structs that I'd revise
+// fmt.Stringer: An interface that defines a method String() string, allowing types to define their own string representation.
+type stringer interface{
+	String() string
+}
 
-// to be completed
 
+// fmt.Error: An interface that defines a method Error() string, allowing types to represent errors in a custom way.
+// type error interface{ // commented out as it was colliding with the built in error interface in the functions used here
+// 	error() string
+// }
+
+
+// io.Reader: An interface that defines a method Read(p []byte) (n int, err error), allowing types to implement custom reading behavior.
+// io.Writer: An interface that defines a method Write(p []byte) (n int, err error), allowing types to implement custom writing behavior.
+type reader interface{
+	Read(p []byte) (int, error)
+}
+type Writer interface{
+	Write(p []byte) (int, error)
+}
+// io.Closer: An interface that defines a method Close() error, allowing types to implement custom cleanup behavior.
+type closer interface{
+	Close() error
+}
+
+// io.Seeker: An interface that defines a method Seek(offset int64, whence int) (int64, error), allowing types to implement custom seeking behavior.
+type seeker interface{ // used a lot in on-disk file handling
+	Seek(offset int64, whence int) (int64, error)
+}
+
+// sort.Interface: An interface that defines methods for sorting collections, allowing types to implement custom sorting behavior.
+// similar to how we would implement index sorting in a database with a complex index ( cost , category preference , units_sold)
+type sorter interface{
+	Len() int // to detect the length of the collection ovbiously
+	Less(i, j int) bool // comparision method passed in <>
+	Swap(i, j int) // to swap the elements at index i and j
+}
+
+// Interface Composition
+// we can also define our own custom interfaces that satisfy these built in interfaces or other custom interfaces.
+type myStringer interface{
+	stringer
+	error
+	reader
+	Writer
+}
+
+type person struct { // to satisfy these built in interfaces.
+	Name string
+	Age  int
+}
+func (p person) String() string{
+	return fmt.Sprintf("Person output : %s and his age is %d", p.Name, p.Age) // this would be automatically called when fmt.Println() is used around this type
+}
+
+func (p person) error() string {
+	return fmt.Sprintf("Person error : %s is not his name and his age is not %d", p.Name, p.Age) // this would be automatically called when fmt.Errorf() is used around this type
+}
+
+//
+
+
+
+// fmt.Scanner: An interface that defines methods for scanning input, allowing types to implement custom input parsing.
+
+
+// time.Time: Represents a point in time, with methods for formatting and parsing.
+
+
+// net.Conn: An interface that represents a network connection, providing methods for reading and writing data over a network.
+
+// other essentials :
+/*
+io.Reader - Reading data from any source
+io.Writer - Writing data to any destination
+io.Closer - Closing resources
+fmt.Stringer - Custom string representation
+error - Error handling
+sort.Interface - Custom sorting
+http.Handler - HTTP request handling
+context.Context - Cancellation and deadlines
+json.Marshaler/Unmarshaler - Custom JSON serialization
+sql.Scanner/driver.Valuer - Database type conversion
+sync.WaitGroup: A synchronization primitive that allows you to wait for a collection of goroutines to finish.
+*/
 
 
 
@@ -121,6 +204,9 @@ type user struct{
 // Interfaces
 // Suppose I want to implement a program that outsources reading and writing operations to a file or a network connection.
 // I would define an interface that specifies the methods for reading and writing data.
+// do checkout design patterns for using interfaces in Go
+
+
 
 type readwriter interface{
 	 write([]byte) (string , error)
@@ -156,6 +242,12 @@ func (io iohandler) read() (string, error) {
 // - if it has the right methods, it automatically satisfies the interface.
 
 
+// INTERFACE Good todos:
+/*
+Keep them compact and focused on a single responsibility(basically small).
+Accept Interfaces, Return Structs
+Avoid using interfaces for types that are not expected to change or be extended.
+*/
 
 //  EMPTY INTERFACES
 // An empty interface is a special type in Go that can hold values of any type.
@@ -512,6 +604,9 @@ var padding_sample alignment;
 	// as there are 3 padding bytes after int8 , asit takes one byte
 
 
+shashank := person{ "Shashank", 25}
+fmt.Println(shashank) // would call the String() method automatically
+
 
 
 printnum(0) // this would run synchrounously , this means the main function call will block until it completes before moving to the next line of code.
@@ -529,6 +624,7 @@ go printnum(1) // this would run asynchronously , this means the main function c
 	// comment out the time.Sleep() line to see this behaviour
 
 	time.Sleep(2 * time.Second) // now all would be printed
+
 
 
 
