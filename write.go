@@ -1,12 +1,13 @@
 package main
 
-import "time"
-import "fmt"
-import "unsafe"
-
-
-
-
+import (
+	"fmt"
+	"os"
+	"syscall"
+	"time"
+	"unsafe"
+	"os/signal"
+)
 
 // functions in go are first class citizens i.e. they could be treated like any other value or variable
 // passing as arguments , assigning to a variable or reassiging the values
@@ -608,6 +609,7 @@ shashank := person{ "Shashank", 25}
 fmt.Println(shashank) // would call the String() method automatically
 
 
+// concurrency
 
 printnum(0) // this would run synchrounously , this means the main function call will block until it completes before moving to the next line of code.
 
@@ -625,20 +627,166 @@ go printnum(1) // this would run asynchronously , this means the main function c
 
 	time.Sleep(2 * time.Second) // now all would be printed
 
+	// go uses a fork - join model for concurrency
+	// but right now we are not using any synchronization mechanism to wait for the goroutines to finish before exiting the main function.
+	// so there is no coordination between the goroutines and the main function. everything is running independently and concurrently.
 
 
+	// channels
+	// channels are used to communicate between goroutines and synchronize their execution.
+	// sort of referring to the same place in memory to communicate , but with go it is fundamental to use channels for communication between goroutines
+	// one goroutine can send data to a channel, and another goroutine can receive data from the same channel.basically a fifo queue
+	// main function is also a goroutine, so it can also send and receive data from channels.
+	// main funcction would block until the data is sent or received from the channel, so it is a blocking operation.
+
+	// so if there is a channel that the main reads from and other goroutines write to , this could be a good way to achieve synchronization
+
+	pehlachan := make(chan string) // create a channel of type string
+	dusrachan := make(chan int)
+    teesrachan := make(chan int)
+	go func(){
+		pehlachan <- "namaste ji" // send data to the channel
+
+	}()
+	sandesh := <- pehlachan // receiving data is a blocking operation, so the main function will wait until data is received from the channel
+	// this acted as the join for the fork-join model
+	fmt.Println("namaste yahase lekar")
+	fmt.Println(sandesh)
+
+	for i:=0;i<10;i++{ // to showcase for select loop
+	go func(){
+		dusrachan <- 69;
+	}()
+
+	go func(){
+		teesrachan <- 6969;
+	}()
+	// just to notice the difference in timing as the signals are recieved
+	time.Sleep(1*time.Second) // this is just to give some time for the goroutines to finish before the main function exits
+	}
+	// select statements
+
+	select {
+	case msg := <-dusrachan:
+		fmt.Println("Received from dusrachan: ", msg)
+	case msg := <-teesrachan:
+		fmt.Println("Received from teesrachan: ", msg)
+	}
+
+
+
+	/* Vague internals:
+The goroutine executing this select gets blocked if neither channel is ready.
+if both channels are ready, it will choose one of them randomly to proceed with.
+The Go scheduler parks this goroutine and resumes it only when any of the channels becomes
+ready (i.e., someone sends a value on dusrachan or teesrachan).
+It uses semacquire/semrelease operations in the runtime to handle this blocking efficiently (not a busy wait).
+
+Each Go channel is implemented as a hchan struct internally in the runtime, which manages:
+A queue of senders and queue of receivers
+A buffer (if it's a buffered channel)
+A mutex for synchronization
+When you do <-dusrachan:
+If the channel has data, it’s read and returned.
+If it’s empty, your goroutine is queued as a receiver and goes to sleep.
+The select statement is compiled into a call to runtime.selectgo().
+
+Under the hood, it uses a randomized polling algorithm (to ensure fairness).
+Here's what happens:
+It checks the readiness of each channel.
+If multiple are ready: one is picked at random.
+If none are ready: goroutine blocks and is registered as a receiver on both channels.
+When any channel receives data, the goroutine is woken up and the corresponding case is executed
+
+
+The Go runtime attempts to avoid locking by using atomic instructions (e.g., CAS – compare and swap) for fast paths:
+If a channel is ready immediately, data is pulled without locks.
+Only the slow path (when blocking is needed) uses full synchronization.
+
+Any references in msg are tracked by the garbage collector.
+While the goroutine is parked, it’s still reachable and safe — Go's GC is goroutine-safe and concurrent.
+
+The select gets translated to a jump table or switch-like structure in compiled code.
+Branch prediction may play a role in performance if one channel is more frequently used.
+
+
+
+	*/
+
+// majorly used concurrency patterns in go
+
+	// for select loop
+	// Worker Pool: A fixed number of goroutines that process tasks from a shared channel.
+	// Fan-out: Multiple goroutines reading from the same channel to distribute workload.
+	// Fan-in: Merging multiple channels into a single channel to simplify communication.
+	// Pipeline: A series of stages where each stage is a goroutine that processes data and passes it to the next stage.
+	// Selective Receive: Using select to handle multiple channels and perform actions based on which channel is ready.
+
+	// channels can either be buffered or unbuffered
+	// Buffered channels allow sending and receiving without blocking until the buffer is full or empty.
+	// an unbuffered channel provides a guarantee that the exchange takes place synchronously, exactly when the send and receive operations are executed.
+	// Buffered channels are useful when you want to decouple the sender and receiver, allowing them to operate independently upto a certain limit.as islam puts it , send 2-3 years and forget , this 2-3 is the buffer capacity
+	// a clever implementation : use this to limit the number of goroutines that can run concurrently by using a buffered channel as a semaphore.
+	// for example, if you want to limit the number of goroutines to 3, you can create a buffered channel with a capacity of 3 and use it to signal when a goroutine is done.(using defer)
+	// or you can use a buffered channel to limit the number of concurrent requests to a server by using it as a semaphore.
+
+
+	// bufchan := make(chan string, 3) // gd and read
+
+	khelkhatam := make(chan struct{}) // used to signal that we have gracefully shut down
+	// because if the main thread(go routine) exits we'd be done for good as this signal handling goroutine would stop as well
+	sigchan := make(chan os.Signal, 1) // used to handle signals like ctrl+c(interrupt) or kill
+	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM) // notify the channel when an interrupt signal is received
+
+	go func(){
+		<-sigchan // this would block until a signal is received
+		fmt.Println("\nReceived interrupt signal, exiting gracefully...")
+		os.Exit(0) // exit the program gracefully
+		close(khelkhatam) // close the channel to signal that we are done
+	}() // this would run in a separate goroutine so that the main function can continue executing
+
+/*
+ if you handle the signal yourself (with signal.Notify) and do not exit immediately.
+The Go runtime doesn’t automatically stop your app on SIGINT or SIGTERM.
+It waits for your code to handle it — that's why your goroutine has time to run.
+But, if you don’t handle the signal, or if your main goroutine exits early, the program ends immediately, and:
+All goroutines stop.
+Cleanup logic may be skipped.OS forcibly reclaims memory, file descriptors, etc.
+*/
+
+
+
+	go func(){
+
+	for{  // this would mean that the main function would keep running and waiting for messages from the channels hence this is usually used in a server-like application
+		select{
+		case msg := <-dusrachan:
+			fmt.Println("Received from dusrachan: ", msg)
+		case msg := <-teesrachan:
+			fmt.Println("Received from teesrachan: ", msg)
+		 case <-time.After(1 * time.Second): // this would block the select statement for 1 second
+		// this acts as the heartbeat , if no message is received from either channel for 1 second, it would satisfy the case and execute the code
+		// preventing the select statement from blocking indefinitely
+		}
+			// why does this print all at once rather than staggered? when the reciever is written later but staggered when the reciever is written earlier
+			// quite an interesting problem , try figuring it out whenever you revisit.
+	}
+ }() // for select loop is best suited for server-like applications where you want to keep the main function running and waiting for messages from the channels
+	// keeping this in the main goroutine would block the main function and it would never exit
+
+	<-khelkhatam // this would block the main function until the channel is closed, which happens when the signal is received
+	// right now ofcourse this is unreachable
 
 }
 
 
 // Language Quirks:
 // Capitalization Controls Visibility (Exported(name starts with Capital letter)  vs Unexported)
-// Names starting with a capital letter are exported, meaning they can be accessed from other packages.
+// Only the Names starting with a capital letter are exported, meaning they can be accessed from other packages.
 // Names starting with a lowercase letter are unexported, meaning they are only accessible within the same package.
 // no implicit type conversion even from uint4 to uint16
 // multiple return values
 // the compiler inserts semicolon but is sensitive to \n
-
 
 
 
@@ -686,5 +834,6 @@ ________________________________________________________________________________
 | `interface{}`  | Interface header              | ✅ Yes (depends on content)  |
 |_______________________________________________________________________________|
 */
+
 
 
