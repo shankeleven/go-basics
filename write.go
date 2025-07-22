@@ -569,7 +569,9 @@ if exist {
 */
 
 
-	done := make(chan struct{})
+	done := make(chan struct{}) // gd would not work as chan is not a type written in a .go file hence lsp cannot trace it
+	// rather it is a keyword built into the languge so to refer to https://github.com/golang/go/blob/master/src/runtime/chan.go
+	// Channels are implemented in Go’s runtime, which is written in a mix of Go and assembly. go to the link above to checkout runtime implementations of all other built-in types
 	go func() { //  no name becuase wanted to use inside main function
     // do something
     done <- struct{}{} // signal completion
@@ -729,6 +731,18 @@ Branch prediction may play a role in performance if one channel is more frequent
 	// a clever implementation : use this to limit the number of goroutines that can run concurrently by using a buffered channel as a semaphore.
 	// for example, if you want to limit the number of goroutines to 3, you can create a buffered channel with a capacity of 3 and use it to signal when a goroutine is done.(using defer)
 	// or you can use a buffered channel to limit the number of concurrent requests to a server by using it as a semaphore.
+	/*
+
+Internally, works like a FIFO circular queue.
+Channels transfer copies of objects, rather than the actual objects.
+
+
+So, when we talk about implementing channels, we can picture a simple way with a queue protected by locks.
+Essentially, Go takes a similar approach, and this is embodied in the hchan structure. This structure plays a central role in channel implementation.
+Go’s channel implementation is centered around three structures: hchan, waitq, and sudog
+
+
+    */
 
 
 	// bufchan := make(chan string, 3) // gd and read
@@ -738,13 +752,12 @@ Branch prediction may play a role in performance if one channel is more frequent
 	sigchan := make(chan os.Signal, 1) // used to handle signals like ctrl+c(interrupt) or kill
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM) // notify the channel when an interrupt signal is received
 
-	go func(){
+	go func(){ // but this would in effect only after the main thread has gone past the signal handling code
 		<-sigchan // this would block until a signal is received
 		fmt.Println("\nReceived interrupt signal, exiting gracefully...")
 		os.Exit(0) // exit the program gracefully
 		close(khelkhatam) // close the channel to signal that we are done
 	}() // this would run in a separate goroutine so that the main function can continue executing
-
 /*
  if you handle the signal yourself (with signal.Notify) and do not exit immediately.
 The Go runtime doesn’t automatically stop your app on SIGINT or SIGTERM.
@@ -756,6 +769,8 @@ Cleanup logic may be skipped.OS forcibly reclaims memory, file descriptors, etc.
 
 
 
+
+
 	go func(){
 
 	for{  // this would mean that the main function would keep running and waiting for messages from the channels hence this is usually used in a server-like application
@@ -764,20 +779,76 @@ Cleanup logic may be skipped.OS forcibly reclaims memory, file descriptors, etc.
 			fmt.Println("Received from dusrachan: ", msg)
 		case msg := <-teesrachan:
 			fmt.Println("Received from teesrachan: ", msg)
-		 case <-time.After(1 * time.Second): // this would block the select statement for 1 second
+		 case <-time.After(500 * time.Millisecond): // this would block the select statement for 1 second
 		// this acts as the heartbeat , if no message is received from either channel for 1 second, it would satisfy the case and execute the code
 		// preventing the select statement from blocking indefinitely
 		}
 			// why does this print all at once rather than staggered? when the reciever is written later but staggered when the reciever is written earlier
 			// quite an interesting problem , try figuring it out whenever you revisit.
+			// could this be solved using buffered channels?
 	}
  }() // for select loop is best suited for server-like applications where you want to keep the main function running and waiting for messages from the channels
 	// keeping this in the main goroutine would block the main function and it would never exit
+
+
+
+
+// Minimal definition for waitq and mutex to fix compile error , there's not any more sense to it
+type waitq struct{}
+type mutex struct{}
+
+type hchan struct {  // the compiler is not crying because this is a type definition and not a variable declaration
+	 qcount   uint           // Total data in the queue
+	 dataqsiz uint           // Buffer size of the channel
+	 buf      unsafe.Pointer // Pointer to an array of data elements
+	 elemsize uint16         // Size of each element. Decide by type of elements
+	 closed   uint32         // Flag indicating whether the channel is closed
+	 elemtype any            // Type of the elements sent on the channel
+	 sendx    uint           // Index of the next slot to send data
+	 recvx    uint           // Index of the next slot to receive data
+	 recvq    waitq          // Queue of waiting receivers
+	 sendq    waitq          // Queue of waiting senders
+	 lock     mutex          // Mutex for protecting the channel
+}
+
+// While making a channel, Go allocates hchan struct on a heap and returns a pointer to it. So, channel is just a pointer to a variable of type hchan.
+/*
+As explained above while we init a buffer channel it creates a buffer of channel length and waits for enqueue and deque the elements.
+Let’s think there is a enque so it puts the elements in buffer and then deque poll the element from buffer.
+and this is how vaguely the communication happens between goroutines.
+
+
+When G1 (the sender) becomes scheduled for execution, there are two primary methods to resume the blocked receiver (G2):
+
+Enqueue Approach: G1 enqueues the data into the channel’s buffer, dequeues the waiting G2 from the recvq, and signals the scheduler that G2 is ready to execute again.
+Optimized Copying Approach: G1 directly copies the task object into the memory location reserved for G2’s stack, from the sudog.elem field.
+Now question arises Why did G1 directly copy task0 into G2 stack instead enqueuing:
+
+enque and deque are simple , you acquire the lock , make the read or write operation and thereafter release the lock.
+
+The optimized copying approach is unconventional but efficient. Given that each goroutine has its separate stack space,
+and goroutines do not access each other’s state directly, G1 can directly manipulate G2’s stack pointer.
+This avoids the need for G2 to acquire a lock and modify the channel’s buffer. This optimization reduces memory copying overhead,
+improving performance by reducing the overall synchronization overhead.
+
+
+
+*/
+
+tasks := []string{"task1", "task2", "task3"}
+taskchan := make(chan string, 3) // buffered channel to hold tasks
+	for _,task := range tasks{
+		taskchan <- task
+
+	}
+
+
 
 	<-khelkhatam // this would block the main function until the channel is closed, which happens when the signal is received
 	// right now ofcourse this is unreachable
 
 }
+// var a chan
 
 
 // Language Quirks:
@@ -826,12 +897,12 @@ The term "reference type" in Go refers to types that internally hold a pointer t
 _________________________________________________________________________________
 | Reference Type | What’s copied?                | Can modify underlying data? 	|
 | -------------- | ----------------------------- | -----------------------------|
-| `*T`           | The pointer (address)         | ✅ Yes                       |
-| `[]T`          | Slice header (ptr, len, cap)  | ✅ Yes                       |
-| `map[K]V`      | Map header (internal pointer) | ✅ Yes                       |
-| `chan T`       | Channel handle                | ✅ Yes                       |
-| `func`         | Function pointer              | ✅ Yes                       |
-| `interface{}`  | Interface header              | ✅ Yes (depends on content)  |
+| `*T`           | The pointer (address)         | Yes 	                        |
+| `[]T`          | Slice header (ptr, len, cap)  | Yes                          |
+| `map[K]V`      | Map header (internal pointer) | Yes                          |
+| `chan T`       | Channel handle                | Yes                          |
+| `func`         | Function pointer              | Yes                          |
+| `interface{}`  | Interface header              | Yes (depends on content)     |
 |_______________________________________________________________________________|
 */
 
