@@ -7,6 +7,8 @@ import (
 	"time"
 	"unsafe"
 	"os/signal"
+	"sync"
+	"math/rand"
 )
 
 // functions in go are first class citizens i.e. they could be treated like any other value or variable
@@ -641,6 +643,20 @@ go printnum(1) // this would run asynchronously , this means the main function c
 	// main function is also a goroutine, so it can also send and receive data from channels.
 	// main funcction would block until the data is sent or received from the channel, so it is a blocking operation.
 
+	/*
+Bidirectional: chan T
+Send-only: chan<- T
+Receive-only: <-chan T
+This helps enforce communication patterns and prevent errors.
+
+Best Practices:
+Always be clear about channel ownership
+Document who is responsible for closing
+Use select for timeouts and cancellation
+Consider buffered channels for performance
+Keep channel operations simple and clear
+*/
+
 	// so if there is a channel that the main reads from and other goroutines write to , this could be a good way to achieve synchronization
 
 	pehlachan := make(chan string) // create a channel of type string
@@ -843,12 +859,103 @@ taskchan := make(chan string, 3) // buffered channel to hold tasks
 	}
 
 
+// waitgroups are used to wait for a collection of goroutines to finish executing before proceeding further in the main function.
+// different from select as select waits like OR and this works like AND
+/*
+obviously the methods are add(n int) , done() and wait() wait waits till the count is 0
+common observations:
+Always call Add() BEFORE launching the goroutine
+Use defer wg.Done() to ensure the counter is always decremented
+The counter must never go negative (causes panic)
+WaitGroup is not copied after first use
+Never pass a WaitGroup by value, always pass by reference (use *sync.WaitGroup)(obviously)
 
+*/
+
+
+
+	var wg sync.WaitGroup  // gd and gr for learning about methods
+// sync/atomic is also very interesting , make sure to gd
+
+	for i:=0;i<3;i++{
+		wg.Add(1)
+		go func(){
+			defer wg.Done() // this would ensure that the counter is decremented when the goroutine finishes executing
+			time.Sleep(200*time.Millisecond) // simulate some work
+			fmt.Printf("Goroutine %d finished\n", i)
+		}()
+	}
+	wg.Wait()
+
+// worker pool
+	/*
+Best Practices:
+Use buffered channels to prevent blocking Implement graceful shutdown Monitor and log worker activities Handle potential panics in workers Consider timeout mechanisms
+
+Potential Challenges:
+Deadlock prevention Error handling Resource management Load balancing
+*/
+
+const num_workers = 5
+const num_jobs = 10
+
+jobs := make(chan int, num_jobs)
+results := make(chan int, num_jobs)
+
+worker := func(id int, jobs <-chan int, results chan<- int){ // <-chan for receive only and chan<- for send only
+
+		for job := range jobs{
+// all workers one by one taking the jobs from the channel , once read , the job is removed from the channel
+// this range jobs is identical to job <- jobs inside a for loop
+			fmt.Println("Worker", id, "processing job", job)
+			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond) // simulate some work
+			results <- job*10
+		}
+	}
+
+	for i:=0;i< num_workers;i++{
+		wg.Add(1)
+		go func(id int){
+			defer wg.Done()
+			worker(id, jobs, results)
+		}(i)
+	}
+
+
+	for i:=100;i<100+num_jobs;i++{
+		jobs<- i
+	}
+
+	for i:=0;i<num_jobs;i++{
+		for result:= range results{
+			fmt.Println("Result:", result)
+		}
+	}
+	close(jobs) // close the jobs channel to signal that no more jobs will be sent
+
+// analyse the above code and process how it works again and there is always a possibility of two workers taking the same job
+// but these were simple tasks , with known number of jobs and workers
+// let's scale dynamically based upon the requirements
+
+
+
+
+
+
+
+/*
+Buffer size matters (prevents blocking)
+Too many workers can cause overhead
+Too few workers can create bottlenecks
+Use runtime.NumCPU() for optimal worker count
+*/
 	<-khelkhatam // this would block the main function until the channel is closed, which happens when the signal is received
 	// right now ofcourse this is unreachable
 
 }
-// var a chan
+
+
+
 
 
 // Language Quirks:
