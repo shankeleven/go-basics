@@ -9,7 +9,79 @@ import (
 	"os/signal"
 	"sync"
 	"math/rand"
+	"runtime"
 )
+
+// dynamic worker pool
+
+/*
+sync.Mutex is a mutual exclusion lock in Go. It ensures that only one goroutine can access a particular critical section
+(i.e., shared resource) at a time.
+*/
+ type dynamic_pool struct{
+	kaam chan func()
+	workers int
+	max_workers int
+	mu sync.Mutex // gd and gr , this is an interesting implementation
+}
+
+func create_pool(max_worker int) *dynamic_pool{
+ pool:= dynamic_pool{
+		kaam: make(chan func(), 100), // limiting the buffer at 100 to avoid excessive overhead
+		workers: 0,
+		max_workers: max_worker,
+		// mu: new(sync.Mutex),  //  this returns a *sync.Mutex
+	}
+	return &pool
+}
+
+func (dp *dynamic_pool) push(fun func()){
+
+	if dp.workers < dp.max_workers{
+	dp.mu.Lock()
+		dp.workers++
+		fmt.Printf("Worker number %d added\n", dp.workers)
+		dp.mu.Unlock()
+		go dp.worker()
+	}
+
+	dp.kaam<- fun // wrote it later so one reciever is ready to roll
+
+}
+
+func (dp *dynamic_pool) worker(){
+
+	for fun:= range dp.kaam{
+		fun()
+	}
+
+	dp.mu.Lock()
+	dp.workers--
+	fmt.Printf("Worker number %d removed\n", dp.workers)
+	dp.mu.Unlock()
+}
+
+func demonstrate_dp(){ // to demonstrate that our worker pool works fine
+	pool:= create_pool(runtime.NumCPU())
+	var wg sync.WaitGroup
+	for i:=0;i<200;i++{
+	wg.Add(1)
+	pool.push(func(){
+		defer wg.Done()
+		time.Sleep(200*time.Millisecond)
+		fmt.Println("doing job number ", i)
+	})
+	}
+
+ wg.Wait()
+
+
+
+}
+
+
+
+
 
 // functions in go are first class citizens i.e. they could be treated like any other value or variable
 // passing as arguments , assigning to a variable or reassiging the values
@@ -294,6 +366,8 @@ func main(){
     //
     // var rit getter
 
+
+	demonstrate_dp()
 
     //
 
@@ -680,7 +754,7 @@ Keep channel operations simple and clear
 		teesrachan <- 6969;
 	}()
 	// just to notice the difference in timing as the signals are recieved
-	time.Sleep(1*time.Second) // this is just to give some time for the goroutines to finish before the main function exits
+	// time.Sleep(1*time.Second) // this is just to give some time for the goroutines to finish before the main function exits
 	}
 	// select statements
 
@@ -763,7 +837,7 @@ Go’s channel implementation is centered around three structures: hchan, waitq,
 
 	// bufchan := make(chan string, 3) // gd and read
 
-	khelkhatam := make(chan struct{}) // used to signal that we have gracefully shut down
+	// khelkhatam := make(chan struct{}) // used to signal that we have gracefully shut down
 	// because if the main thread(go routine) exits we'd be done for good as this signal handling goroutine would stop as well
 	sigchan := make(chan os.Signal, 1) // used to handle signals like ctrl+c(interrupt) or kill
 	signal.Notify(sigchan, os.Interrupt, syscall.SIGTERM) // notify the channel when an interrupt signal is received
@@ -772,7 +846,7 @@ Go’s channel implementation is centered around three structures: hchan, waitq,
 		<-sigchan // this would block until a signal is received
 		fmt.Println("\nReceived interrupt signal, exiting gracefully...")
 		os.Exit(0) // exit the program gracefully
-		close(khelkhatam) // close the channel to signal that we are done
+		// close(khelkhatam) // close the channel to signal that we are done
 	}() // this would run in a separate goroutine so that the main function can continue executing
 /*
  if you handle the signal yourself (with signal.Notify) and do not exit immediately.
@@ -938,6 +1012,23 @@ worker := func(id int, jobs <-chan int, results chan<- int){ // <-chan for recei
 // let's scale dynamically based upon the requirements
 
 
+// naive implementation
+	// num_tasks := rand.Intn(100) + 1
+	// max_workers := runtime.NumCPU()
+
+	// kaam := make(chan int , num_tasks)
+	// go to dynamic worker pool
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -949,7 +1040,7 @@ Too many workers can cause overhead
 Too few workers can create bottlenecks
 Use runtime.NumCPU() for optimal worker count
 */
-	<-khelkhatam // this would block the main function until the channel is closed, which happens when the signal is received
+	// <-khelkhatam // this would block the main function until the channel is closed, which happens when the signal is received
 	// right now ofcourse this is unreachable
 
 }
