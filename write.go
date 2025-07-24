@@ -36,6 +36,8 @@ func create_pool(max_worker int) *dynamic_pool{
 }
 
 func (dp *dynamic_pool) push(fun func()){
+	// Always use pointer receivers (*Type) for methods that modify internal state.(obvious but i did this mistake thinking i am always returning &pool)
+
 
 	if dp.workers < dp.max_workers{
 	dp.mu.Lock()
@@ -1021,32 +1023,16 @@ worker := func(id int, jobs <-chan int, results chan<- int){ // <-chan for recei
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
 Buffer size matters (prevents blocking)
 Too many workers can cause overhead
 Too few workers can create bottlenecks
-Use runtime.NumCPU() for optimal worker count
+Use runtime.NumCPU() for what is usually the optimal worker count
 */
 	// <-khelkhatam // this would block the main function until the channel is closed, which happens when the signal is received
 	// right now ofcourse this is unreachable
 
 }
-
-
-
 
 
 // Language Quirks:
@@ -1057,11 +1043,8 @@ Use runtime.NumCPU() for optimal worker count
 // multiple return values
 // the compiler inserts semicolon but is sensitive to \n
 
+/* what values can be nil and what cannot be nil: all referece types can be nil, but value types cannot be nil.
 
-
-
-
-/* what values can be nil and what cannot be nil:
 
 Every function call in Go passes arguments by value. That means:
 The function receives a copy of the argument.
@@ -1072,6 +1055,7 @@ But if the argument is a reference type, the copy still points to the same under
 │     Reference Types    │
 │ (Can be nil, 0 bytes)  │
 ├────────────────────────┤
+
 │ *T      => Pointer     │
 │ interface{} / error    │
 │ []T     => Slice       │
