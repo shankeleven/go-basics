@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
+	"os/signal"
+	"runtime"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
-	"os/signal"
-	"sync"
-	"math/rand"
-	"runtime"
 )
 
 // dynamic worker pool
@@ -32,6 +32,8 @@ func create_pool(max_worker int) *dynamic_pool{
 		max_workers: max_worker,
 		// mu: new(sync.Mutex),  //  this returns a *sync.Mutex
 	}
+
+
 	return &pool
 }
 
@@ -134,7 +136,7 @@ func demonstrate_dp(){ // to demonstrate that our worker pool works fine
 // closures , variables that are closed over are stored in heap not stack , hence they persist
 // it is a normal function but uses variables from outside its scope
 func outer() func(int) int {
-    count:=5
+    count:=5 // do leader c for wathing code actions and thereafter checkout compiler optimisations
     return func (a int) int{ // has to be unnamedd as there is no point in giving name , if a name is to be
         // given , use first class citizenship and store it in a variable
         count+=a
@@ -359,6 +361,8 @@ func (u *user) vrelocate( newadd string ) {
 func printnum(a int){
 	fmt.Println(a)
 }
+
+
 
 
 
@@ -927,6 +931,28 @@ improving performance by reducing the overall synchronization overhead.
 
 */
 
+
+
+	// done channel
+	majdoor:= func(done <-chan struct{}){
+		for{
+			select{
+			  case <-done:
+				return
+			default:
+				fmt.Println("Majdoori chaalu hai")
+			}
+		}
+	}
+	supervisor := func(){
+	rukja := make(chan struct{})
+	go majdoor(rukja)
+	time.Sleep(500 * time.Millisecond)
+	close(rukja)
+	}
+
+	go supervisor()
+
 tasks := []string{"task1", "task2", "task3"}
 taskchan := make(chan string, 3) // buffered channel to hold tasks
 	for _,task := range tasks{
@@ -1007,6 +1033,8 @@ worker := func(id int, jobs <-chan int, results chan<- int){ // <-chan for recei
 			fmt.Println("Result:", result)
 		}
 	}
+
+
 	close(jobs) // close the jobs channel to signal that no more jobs will be sent
 
 // analyse the above code and process how it works again and there is always a possibility of two workers taking the same job
