@@ -933,8 +933,49 @@ improving performance by reducing the overall synchronization overhead.
 
 
 
+// pipeline concurrency pattern
+
+prepare := func(in []int) <-chan int{
+	     out := make(chan int)
+		go func(){ for _, i:= range in{
+			out<- i
+		}
+			close(out)
+	}()
+
+		return out
+	}
+// used the unbuffered channel to ensure the pipline nature of the process
+
+process := func(in <- chan int) <-chan int{
+		out:= make(chan int)
+
+		go func(){
+			for i:= range in{
+				out <- i*i
+			}
+			close(out)
+		}()
+		return out
+	}
+
+showman := func(in <-chan int){
+	for i:= range in{
+			fmt.Println("result was", i)
+		}
+	}
+
+numbers_slice := []int{1,2,3,4,5,6,7,8}
+go showman(process(prepare(numbers_slice))) // this would run the pipeline in parallel and print the results as they come in
+// think why it works
+
+
+
+time.Sleep(2 * time.Second)
+
+
 	// done channel
-	majdoor:= func(done <-chan struct{}){
+	majdoor:= func(done <-chan struct{}){ // recieveing it as read-only so the compiler helps us not to send anything to it
 		for{
 			select{
 			  case <-done:
@@ -947,11 +988,12 @@ improving performance by reducing the overall synchronization overhead.
 	supervisor := func(){
 	rukja := make(chan struct{})
 	go majdoor(rukja)
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Millisecond)
 	close(rukja)
 	}
 
 	go supervisor()
+
 
 tasks := []string{"task1", "task2", "task3"}
 taskchan := make(chan string, 3) // buffered channel to hold tasks
