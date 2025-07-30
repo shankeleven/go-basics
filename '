@@ -1018,7 +1018,6 @@ func main() {
 			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond) // simulate some work
 			results <- job * 10
 		}
-	close(results)
 	}
 
 	for i := range num_workers {
@@ -1032,14 +1031,14 @@ func main() {
 	for i := 100; i < 100+num_jobs; i++ {
 		jobs <- i
 	}
-	close(jobs) // close the jobs channel to signal that no more jobs will be sent
 
 	for i := 0; i < num_jobs; i++ {
-		for result := range results { // earlier i wrote the close(Result) after this loop but the range results would be blocking until the channel is closed
+		for result := range results {
 			fmt.Println("Result:", result)
 		}
 	}
 
+	close(jobs) // close the jobs channel to signal that no more jobs will be sent
 
 	// analyse the above code and process how it works again and there is always a possibility of two workers taking the same job
 	// but these were simple tasks , with known number of jobs and workers
