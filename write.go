@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"math/rand"
 	"os"
@@ -1039,6 +1040,30 @@ func main() {
 			fmt.Println("Result:", result)
 		}
 	}
+
+	// File Handling
+
+	file, err := os.Open("sample.txt")
+	if err != nil{
+		fmt.Println("Error opening file:", err)
+		return
+	}
+
+	defer file.Close()
+	var strcontent string = "ewc was good"
+
+	writer := bufio.NewWriter(file)
+	_, err = writer.WriteString(strcontent)
+	if err != nil{
+		fmt.Println("Error writing to file:", err)
+		return
+	} else{
+		fmt.Println("File written successfully")
+	}
+	writer.Flush() // flush the buffer to ensure all data is written to the file
+
+
+
 
 
 	// analyse the above code and process how it works again and there is always a possibility of two workers taking the same job
