@@ -1,3 +1,42 @@
+/*
+GO does not see things in files(unlike c++) but rather in folders(packages)
+Only one file defines func main().
+Other files define functions, structs, types.
+Go will auto-link them.
+This feels weird at first, but it’s powerful:
+No headers
+No includes
+No forward declarations
+Everything in the package sees everything else.
+
+learn-go/
+├── go.mod
+├── cmd/
+│   ├── server/
+│   │   └── main.go
+│   └── worker/
+│       └── main.go
+├── internal/
+│   ├── storage/
+│   │   └── db.go
+│   └── logic/
+│       └── rules.go
+└── pkg/
+    └── mathutil/
+        └── add.go
+This looks nested.
+But Go sees it like this:
+cmd/server → one package
+cmd/worker → another package
+internal/storage → another package
+internal/logic → another package
+pkg/mathutil → another package
+Each directory is compiled independently.
+*/
+
+
+
+
 package main
 
 import (
@@ -82,7 +121,9 @@ func demonstrate_dp() { // to demonstrate that our worker pool works fine
 
 //functions in go are first class citizens i.e. they could be treated like any other value or variable
 // passing as arguments , assigning to a variable or reassiging the values
-// since it's a staticallyyaped language, function variables have fixed types both parameters and return(obviously)
+// since it's a statically typed language, function variables have fixed types both parameters and return(obviously)
+// what i mean by this is if a function was first defined as func(int,int)int , it cannot be reassigned to a function of type func(string,string)string
+// i mean  the variable that stores the function cannot be reassigned to a function of different type
 // there is no concept of void , just don't mention the return type
 
 func add(a int, b int) int {
@@ -128,7 +169,8 @@ func outer() func(int) int {
 	count := 5               // do leader c for wathing code actions and thereafter checkout compiler optimisations
 	return func(a int) int { // has to be unnamedd as there is no point in giving name , if a name is to be
 		// given , use first class citizenship and store it in a variable
-		count += a
+		// also, normally too all we return is 4 or 5 not a = 4 or 5
+		count += a // go runtime decides this
 		return count
 	}
 
@@ -433,6 +475,7 @@ func main() {
 	resp := outer()
 	fmt.Println(resp(5))
 	fmt.Println(resp(5))
+	// makes a difference because the variable count is stored in heap memory
 
 	// defer executes when a function is about to end or return
 	// either through return or panic
