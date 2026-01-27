@@ -166,7 +166,7 @@ func altdivide(a int, b int) (int, string) { // same functionality without using
 // closures , variables that are closed over are stored in heap not stack , hence they persist
 // it is a normal function but uses variables from outside its scope
 func outer() func(int) int {
-	count := 5               // do leader c for wathing code actions and thereafter checkout compiler optimisations
+	count := 5               // do leader c for watching code actions and thereafter checkout compiler optimisations
 	return func(a int) int { // has to be unnamedd as there is no point in giving name , if a name is to be
 		// given , use first class citizenship and store it in a variable
 		// also, normally too all we return is 4 or 5 not a = 4 or 5
@@ -331,7 +331,7 @@ func (io iohandler) read() (string, error) {
 // and pass it to the readwrite struct or any other function that expects a readwriter interface
 
 // var ioHandler inter = iohandler{}
-// rw := readwriter{writer: ioHandler}
+// rw := readwriter{writer: ioHandler{}
 
 // You are making a new readwriter object and telling it, "Here’s your writer — use this ioHandler to do the
 // reading and writing.
@@ -488,6 +488,7 @@ func main() {
 	defer fmt.Println("third")
 
 	// Each function call has its own defer stack maintained by the Go runtime, hence they execute even in panic cases.
+	// Each goroutine maintains a defer stack per function invocation. ofcourse as the stack is not shared
 	// When you call defer f(), Go runtime would act as follows:
 	// Captures the function f and its arguments (evaluated immediately).
 	// Pushes them onto the function's defer stack.
@@ -498,7 +499,9 @@ func main() {
 	x := 10
 	defer fmt.Println(x) // would still print 10 at the end of the function , because the parameters and everything are copied like a snapshot
 	x = 20
-	// Arguments Are Evaluated Immediately
+	// Arguments Are Evaluated Immediately, obviously as it is being passed to a queue that is in the runtime not in
+	// our execution context(in terms of javascript users)  // just a hypothesis of mine that turned out to be incorrect
+
 
 	// Go stores the function pointer and
 	// evaluated arguments in a data structure called a defer record.
@@ -533,7 +536,7 @@ func main() {
 	// pointers
 	// pointer arithmetic is not allowed , as it would confuse out stupid garbage collector
 	// only use this for pass by value and pass by reference
-	// pointer arithmetic could be used using hte package "unsafe" , but the name speaks for itself
+	// pointer arithmetic could be used using the package "unsafe" , but the name speaks for itself
 
 	m, n := 34, 45
 	fmt.Println(m, n)
@@ -721,6 +724,33 @@ func main() {
 	*/
 
 	// so if there is a channel that the main reads from and other goroutines write to , this could be a good way to achieve synchronization
+
+
+	/*
+A channel is not a pipe, not a queue in the abstract sense, and definitely not shared memory with fairy dust.
+Under the hood, a channel is a heap-allocated runtime object (runtime.hchan) containing:
+A buffer (optional, circular queue of elements)
+A mutex-like lock
+Two wait queues:
+senders waiting to send
+receivers waiting to receive
+Metadata: element size, capacity, closed flag
+
+
+
+ch := make(chan int, 2)
+You get:
+one hchan allocated on the heap
+a pointer to it stored in ch
+Both goroutines hold a pointer to the same channel object.
+Sending and receiving is just:
+- acquire lock
+- copy memory
+- wake up a goroutine if needed
+- release lock
+No OS pipes. No syscalls. Just runtime-managed memory and scheduling.
+
+*/
 
 	pehlachan := make(chan string) // create a channel of type string
 	dusrachan := make(chan int)
