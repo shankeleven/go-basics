@@ -585,6 +585,55 @@ func main() {
 	st.vrelocate("delhi") // this would change
 	fmt.Println(st)
 
+
+	// Arrays
+
+// Declaration with zero values
+var arr1 [5]int  // [0, 0, 0, 0, 0]
+
+// Declaration with values
+arr2 := [5]int{1, 2, 3, 4, 5}
+
+// Let compiler count the length
+arr3 := [...]int{1, 2, 3, 4, 5}  // Same as [5]int
+
+// Partial initialization
+arr4 := [5]int{1, 2}  // [1, 2, 0, 0, 0]
+
+// Initialize specific indices
+arr5 := [5]int{0: 10, 4: 50}  // [10, 0, 0, 0, 50]
+
+	fmt.Print(arr1, arr2, arr3, arr4,arr5)
+	fmt.Println()
+
+// arrays are value types arr1 = arr2 copies value
+// slices
+	source:= []int{1,2,3}
+	dest := make([]int, len(source))
+
+	copy(dest, source) // else we would have a copy value
+
+	source = append(source, dest...)
+
+	row,column := 4,5
+	matrix:= make([][]int,row)
+
+	for i:= range matrix{
+		matrix[i] = make([]int,column)
+	}
+
+
+	// Note: rows can have different lengths (jagged array)
+	jagged := [][]int{
+		    {1, 2},
+		    {3, 4, 5, 6},
+		    {7},
+	}
+	fmt.Println(jagged);
+
+
+
+
 	// maps
 
 	grades := map[string]int{ // best for compile-time known data , no relocation hence performant
