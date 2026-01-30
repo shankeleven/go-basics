@@ -203,6 +203,28 @@ type getter interface {
 // Under the hood, structs are implemented as a contiguous block of memory,
 // where each field is stored in the order they are defined
 
+// struct tags are string allowed by the go compiler but not understood
+// external libraries would read through it and make sense anyhow they want using reflections
+
+/*
+
+Why reflection feels slow (and is)
+Reflection:
+Disables many compiler optimizations
+Adds runtime checks
+Allocates more
+Uses interfaces heavily
+That’s why:
+JSON is slower than hand-written encoding
+ORMs are slower than raw SQL
+Validators add overhead
+But:
+Reflection trades performance for generality.
+*/
+
+
+
+
 type alignment struct {
 	a int8
 	b int32
