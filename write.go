@@ -205,7 +205,7 @@ type getter interface {
 
 // struct tags are string allowed by the go compiler but not understood
 // external libraries would read through it and make sense anyhow they want using reflections
-
+// ofcourse reflections cannot see unexported fields
 /*
 
 Why reflection feels slow (and is)
@@ -223,6 +223,12 @@ Reflection trades performance for generality.
 */
 
 
+
+type T struct{
+	a int32
+	b bool
+	c int32
+}
 
 
 type alignment struct {
@@ -656,6 +662,9 @@ arr5 := [5]int{0: 10, 4: 50}  // [10, 0, 0, 0, 50]
 
 
 
+    fmt.Println(unsafe.Sizeof(T{}))
+	fmt.Println(unsafe.Alignof(T{}))
+	fmt.Println(unsafe.Offsetof(T{}.a))
 	// maps
 
 	grades := map[string]int{ // best for compile-time known data , no relocation hence performant
