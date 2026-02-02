@@ -206,6 +206,27 @@ type getter interface {
 // struct tags are string allowed by the go compiler but not understood
 // external libraries would read through it and make sense anyhow they want using reflections
 // ofcourse reflections cannot see unexported fields
+
+/*
+
+struct arrays with large structs
+for _,v := range items {
+	v.A = 10
+}
+// this wouldn't make any updates as v is a copied value and not a reference
+
+
+
+for i := range items {
+	items[i].A = 10 // this would make the update as well as be faster and more efficient as we only copy the references
+}
+
+
+*/
+
+
+
+
 /*
 
 Why reflection feels slow (and is)
@@ -662,6 +683,9 @@ arr5 := [5]int{0: 10, 4: 50}  // [10, 0, 0, 0, 50]
 
 
 
+	// think about size , alignment and padding again , how they help with cache lines etc
+	//also touch upon false sharing with two goroutines making changes to different fields of a struct
+	// hence we place then in separate cache lines to introduce clever concurrency
     fmt.Println(unsafe.Sizeof(T{}))
 	fmt.Println(unsafe.Alignof(T{}))
 	fmt.Println(unsafe.Offsetof(T{}.a))
@@ -1085,6 +1109,23 @@ No OS pipes. No syscalls. Just runtime-managed memory and scheduling.
 	// context
 	// from what i understand, context is a way to cancel out child goroutines from a parent goroutine
 	// similar to what we did with the done channel but with some added features like deadlines, timeouts, and values.
+/*
+Also the design decision to whether to create new contexts at every level and pass the respective ones to their children (with defer cancel() ofc)
+or to pass the main context all the way down
+should be done with taking into considerations, the trade-offs about how complexity rises with new channels
+but with passing down the main context , the mid layers do not have the option to kill its child goroutines
+ and it is like a tree
+every cancel() cancels its children contexts as well
+
+this way parents uptill level 5 can run normally and 6 onwards have a timeout if they are being passed as a query
+
+
+
+
+
+*/
+
+
 	/* context is a way to pass cancellation signals and deadlines across goroutines
      and other request-scoped values across API boundaries and between goroutines.
 	they are immutable and is similar to the done channel but with more features
@@ -1127,6 +1168,7 @@ No OS pipes. No syscalls. Just runtime-managed memory and scheduling.
 	   obviously the methods are add(n int) , done() and wait() wait waits till the count is 0
 	   common observations:
 	   Always call Add() BEFORE launching the goroutine
+	   ELSE	there is always a possibility that the wait is returned before Add() is even executed
 	   Use defer wg.Done() to ensure the counter is always decremented
 	   The counter must never go negative (causes panic)
 	   WaitGroup is not copied after first use
