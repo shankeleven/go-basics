@@ -247,10 +247,22 @@ Reflection trades performance for generality.
 
 type T struct{
 	a int32
-	b bool
+	B bool `json:"b"`
 	c int32
 }
 
+
+/* we can read these manually using reflections
+import "reflect"
+
+t := reflect.TypeOf(User{})
+
+field, _ := t.FieldByName("Name")
+tag := field.Tag.Get("json")
+
+fmt.Println(tag) // "name"
+
+*/
 
 type alignment struct {
 	a int8
@@ -829,6 +841,23 @@ arr5 := [5]int{0: 10, 4: 50}  // [10, 0, 0, 0, 50]
 
 	// so if there is a channel that the main reads from and other goroutines write to , this could be a good way to achieve synchronization
 
+
+//  interface{}
+	var check interface{}
+
+	check=90
+
+	val,sahi:= check.(int)
+	if sahi{
+       fmt.Println(val)
+	}
+	check = "ui"
+	val,sahi= check.(int)
+	if sahi{
+       fmt.Println(val)
+	} else{
+      fmt.Println("Not a number")
+	}
 
 	/*
 A channel is not a pipe, not a queue in the abstract sense, and definitely not shared memory with fairy dust.
