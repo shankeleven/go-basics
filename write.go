@@ -88,7 +88,6 @@ func (dp *dynamic_pool) push(fun func()) {
 	}
 
 	dp.kaam <- fun // wrote it later so one reciever is ready to roll
-
 }
 
 func (dp *dynamic_pool) worker() {
@@ -452,7 +451,7 @@ func main() {
 	//variables
 	var a int32
 	var b int
-	a = 0 // compiler would start crying if these are not used
+	a = 0 // compiler would start crying if these are not used as there would be needless memory resources for non-used variables
 	b = 9
 
 	fmt.Println(a, b)
